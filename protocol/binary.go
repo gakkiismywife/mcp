@@ -8,7 +8,6 @@ import (
 )
 
 type Binary struct {
-	CommonHeader
 }
 
 const (
@@ -28,6 +27,7 @@ const (
 	WRITE_SUB_COMMAND    = "0000"
 
 	MONITORING_TIMER = "1000" // 3[sec]
+	//ASCII_MONITORING_TIMER = "0010"
 )
 
 // deviceCodes is device name and hex value map
@@ -117,4 +117,8 @@ func (b Binary) BuildWriteRequest(name string, offset, num int64, writeData []by
 	str := b.Common() + dataLen + MONITORING_TIMER + BINARY_WRITE_COMMAND + WRITE_SUB_COMMAND + offsetHex + deviceCode + points + writeHex
 	fmt.Println(str)
 	return hex.DecodeString(str)
+}
+
+func (b Binary) Common() string {
+	return SubHeader + NetworkNum + PLCNum + IONum + ModuleNum
 }
