@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"mcp/protocol"
+	"net"
 )
 
 type Mc3EClient struct {
@@ -66,4 +67,67 @@ func NewDataTypeHandlerByDataFlag(d DataFlag) protocol.DataTypeHandler {
 		return protocol.ASCII{}
 	}
 	return nil
+}
+
+func (c *Mc3EClient) Read(name string, addr, num int64) ([]byte, error) {
+	//构建请求
+	request, err := c.Handler.BuildReadRequest(name, addr, num)
+	if err != nil {
+		return nil, err
+	}
+
+	//建立连接
+	conn, err := net.Dial(c.NetWork, fmt.Sprintf("%s:%d", c.Host, c.Port))
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	//发送读取请求
+	_, err = conn.Write(request)
+	if err != nil {
+		return nil, err
+	}
+
+	//读取响应
+	readBuff := make([]byte, 22+2*num) // 22 is response header size. [sub header + network num + unit i/o num + unit station num + response length + response code]
+	readLen, err := conn.Read(readBuff)
+	if err != nil {
+		return nil, err
+	}
+
+	return readBuff[:readLen], nil
+}
+
+func (c *Mc3EClient) Write(name string, addr, num int64, data []byte) ([]byte, error) {
+	//构建写入请求
+	request, err := c.Handler.BuildWriteRequest(name, addr, num, data)
+	if err != nil {
+		return nil, err
+	}
+
+	//建立连接
+	conn, err := net.Dial(c.NetWork, c.Addr())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	//发送请求
+	if _, err = conn.Write(request); err != nil {
+		return nil, err
+	}
+
+	//读取响应
+	readBuff := make([]byte, 22)
+	readLen, err := conn.Read(readBuff)
+	if err != nil {
+		return nil, err
+	}
+	return readBuff[:readLen], nil
+}
+
+// Addr 拼接地址
+func (c *Mc3EClient) Addr() string {
+	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }
